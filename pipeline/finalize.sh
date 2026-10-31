@@ -20,6 +20,10 @@ PICK=$(basename $(dirname "$BEST")); TEACHER=$(cat $CP/exp8b/THINK_TEACHER 2>/de
   sed '/^FINAL_MODEL/d' $R/RESULTS.md; printf '\nThe pipeline is in `training/`; GGUF files are in `gguf/`.\n'; } > $S/README.md
 cp -L $CP/models/qwen3-8b/LICENSE $S/LICENSE
 grep -rlE 'hf_[A-Za-z0-9]{20,}' $S/training $S/README.md && { log "UPLOAD STOPPED: token in files"; exit 1; }
+[ -s $R/SUMMARY.md ] && python3 -c "
+import sys
+p, q = sys.argv[1:3]; s = open(p).read(); a = '## How to read the scores'
+open(p, 'w').write(s.replace(a, open(q).read() + a, 1))" $S/README.md $R/SUMMARY.md
 ok=0; for i in 1 2 3; do
     hf repo create $REPO_ID --repo-type model --exist-ok >> $CP/8b/logs/final.log 2>&1
     hf upload $REPO_ID $S . --repo-type model >> $CP/8b/logs/final.log 2>&1 && { ok=1; break; }; sleep 120
