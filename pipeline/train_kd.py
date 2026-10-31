@@ -6,6 +6,7 @@ Loss on answer tokens only: ALPHA * cross-entropy against the teacher's renormal
 (1 - ALPHA) * cross-entropy on the teacher's sampled token. fp32 master weights, bf16 autocast, AdamW, cosine schedule.
 Env: ALPHA (0.8), LR (5e-6), EPOCHS (1), ACCUM (8 sequences per GPU per step), MAX_LEN (12288), SEED (0).
 """
+import gc
 import glob
 import json
 import math
@@ -89,18 +90,40 @@ def loss_of(it):
     return (ALPHA * kd + (1 - ALPHA) * ce).sum(), len(o)
 
 
-step, t0 = 0, time.time()
+# Resumable: a job that dies keeps its progress (the data order only depends on SEED).
+CKPT, start, skipped = os.environ.get('CKPT_DIR'), 0, 0
+if CKPT and os.path.exists(f'{CKPT}/ckpt.pt'):
+    ck = torch.load(f'{CKPT}/ckpt.pt', map_location='cpu', weights_only=False)
+    model.load_state_dict(ck['model']); opt.load_state_dict(ck['opt']); sched.load_state_dict(ck['sched']); start = ck['step']
+    del ck
+    if rank == 0:
+        print(f'[kd] resumed at step {start}', flush=True)
+step, t0 = start, time.time()
 for ep in range(EPOCHS):
     rng.shuffle(order)
     for s in range(steps_per_epoch):
+        if ep == 0 and s < start:
+            continue
         batch = order[(s * world + rank) * ACCUM:(s * world + rank + 1) * ACCUM]
         ntok = torch.tensor([sum(items[i][4] - items[i][3] for i in batch)], device=dev, dtype=torch.float32)
         dist.all_reduce(ntok)
         tot = 0.0
         for i in batch:
-            l, n = loss_of(items[i])
-            (l / ntok).backward()  # summed over ranks below: the step is a mean over every answer token of the step
-            tot += l.item()
+            failed = False
+            try:
+                l, n = loss_of(items[i])
+                (l / ntok).backward()  # summed over ranks below: the step is a mean over every answer token of the step
+                tot += l.item()
+            except RuntimeError as e:  # a cuDNN or memory failure on a rare long sequence: lose that sequence, not the run
+                if not ('mha_graph' in str(e) or isinstance(e, torch.OutOfMemoryError)) or skipped >= 20:
+                    raise
+                skipped += 1
+                print(f'[kd] rank {rank} step {step}: sequence {i} skipped after a GPU error ({skipped})', flush=True)
+                failed = True
+            if failed:  # outside the except block: the traceback no longer holds the sequence's graph
+                failed, l = False, None
+                gc.collect()
+                torch.cuda.empty_cache()
         works = [dist.all_reduce(prm.grad, async_op=True) for prm in model.parameters() if prm.grad is not None]
         for w in works:
             w.wait()
@@ -122,7 +145,7 @@ for ep in range(EPOCHS):
             dist.barrier()
         if rank == 0 and (step % 10 == 0 or step == 1):
             print(f'[kd] step {step}/{total} loss/token {tot / max(1, ntok.item() / world):.4f} lr {sched.get_last_lr()[0]:.2e} '
-                  f'{(time.time() - t0) / step:.1f}s/step', flush=True)
+                  f'{(time.time() - t0) / (step - start):.1f}s/step', flush=True)
 dist.barrier()
 if rank == 0:
     os.makedirs(out, exist_ok=True)
