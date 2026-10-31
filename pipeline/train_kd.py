@@ -52,6 +52,8 @@ def load(f):
 rng = random.Random(SEED)
 order = list(range(len(items)))
 steps_per_epoch = len(order) // (world * ACCUM)
+if os.environ.get('MAX_STEPS'):  # time-boxed run: the cosine schedule still ends at the last step
+    steps_per_epoch = min(steps_per_epoch, int(os.environ['MAX_STEPS']))
 total = steps_per_epoch * EPOCHS
 if rank == 0:
     print(f'[kd] {len(items)} sequences, {world} GPUs x {ACCUM} accum, {total} optimizer steps, alpha {ALPHA}, lr {LR}', flush=True)
