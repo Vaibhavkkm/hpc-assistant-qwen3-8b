@@ -18,18 +18,24 @@ endpoint, served, out, arm = sys.argv[1], sys.argv[2], Path(sys.argv[3]), sys.ar
 out.mkdir(parents=True, exist_ok=True)
 SYSTEM = load_config('configs/rag65_seed42.json').student.system_prompt
 MAXTOK = int(os.environ.get('ANSWER_MAX_TOKENS') or 1536)
+THINK = os.environ.get('THINK', '0') == '1'
+THINK_BUDGET = int(os.environ.get('THINK_BUDGET', 4096)) if THINK else 0  # same 1,536 tokens for the answer on top of the reasoning
+NO_ANSWER = '[no answer: thinking did not finish]'
 P, F = 'runs/rag65/indexes/documents.sqlite', 'runs/rag65/indexes/factory_docs.sqlite'
 
 
 def ask(q):
-    body = {'model': served, 'temperature': 0, 'max_tokens': MAXTOK, 'chat_template_kwargs': {'enable_thinking': False},
+    body = {'model': served, 'temperature': 0, 'max_tokens': MAXTOK + THINK_BUDGET, 'chat_template_kwargs': {'enable_thinking': THINK},
             'messages': [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': q}]}
     for _ in range(3):
         try:
             req = Request(endpoint.rstrip('/') + '/chat/completions', json.dumps(body).encode(), {'Content-Type': 'application/json'})
             with urlopen(req, timeout=900) as r:
                 c = json.loads(r.read())['choices'][0]
-                return c['message']['content'], c.get('finish_reason')
+                text = c['message']['content']
+                if THINK:
+                    text = text.split('</think>')[-1].strip() if '</think>' in text else NO_ANSWER
+                return text, c.get('finish_reason')
         except Exception:
             pass
     return None, None
