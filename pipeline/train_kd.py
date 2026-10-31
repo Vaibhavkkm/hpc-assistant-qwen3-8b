@@ -105,6 +105,19 @@ for ep in range(EPOCHS):
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         opt.step(); sched.step(); opt.zero_grad(set_to_none=True)
         step += 1
+        if step == start + 1:  # weights, Adam state and gradients all exist now: the longest sequence must fit, or fail in minutes, not hours
+            longest = max(items, key=lambda it: min(MAX_LEN, it[2] - it[1] + it[4] - it[3]))
+            for _ in range(2):
+                (loss_of(longest)[0] / 1e6).backward()
+            opt.zero_grad(set_to_none=True)
+            if rank == 0:
+                print(f'[kd] longest sequence fits at MAX_LEN {MAX_LEN}: {torch.cuda.max_memory_allocated() / 2**30:.0f} GiB peak', flush=True)
+        if CKPT and step % 200 == 0:
+            if rank == 0:
+                os.makedirs(CKPT, exist_ok=True)
+                torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'sched': sched.state_dict(), 'step': step}, f'{CKPT}/ckpt.tmp')
+                os.replace(f'{CKPT}/ckpt.tmp', f'{CKPT}/ckpt.pt')
+            dist.barrier()
         if rank == 0 and (step % 10 == 0 or step == 1):
             print(f'[kd] step {step}/{total} loss/token {tot / max(1, ntok.item() / world):.4f} lr {sched.get_last_lr()[0]:.2e} '
                   f'{(time.time() - t0) / step:.1f}s/step', flush=True)
@@ -117,6 +130,6 @@ if rank == 0:
         if os.path.exists(f'{student}/{f}'):
             shutil.copy(f'{student}/{f}', out)
     json.dump({'student': student, 'data': data, 'alpha': ALPHA, 'lr': LR, 'epochs': EPOCHS, 'accum': ACCUM,
-               'world': world, 'sequences': len(items), 'steps': total}, open(f'{out}/KD_TRAIN.json', 'w'), indent=1)
+               'world': world, 'sequences': len(items), 'steps': total, 'max_len': MAX_LEN}, open(f'{out}/KD_TRAIN.json', 'w'), indent=1)
     print('[kd] saved', out, flush=True)
 dist.destroy_process_group()
