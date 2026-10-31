@@ -22,10 +22,10 @@ def main():
     from transformers import AutoTokenizer
     from vllm import LLM, SamplingParams
 
-    sys.path.insert(0, os.path.expanduser('~/cp/alembic/src'))
+    sys.path.insert(0, os.path.expanduser('~/cp/alembic_8b_clone_20261030/src'))
     from distillkit.config import load_config
 
-    SYSTEM = load_config(os.path.expanduser('~/cp/alembic/configs/rag65_seed42.json')).student.system_prompt
+    SYSTEM = load_config(os.path.expanduser('~/cp/alembic_8b_clone_20261030/configs/rag65_seed42.json')).student.system_prompt
     K = 20
     rows = [json.loads(l) for i, l in enumerate(open(src)) if i % nparts == part]
     tok = AutoTokenizer.from_pretrained(student)
@@ -33,10 +33,10 @@ def main():
     for r in rows:
         ids = tok.apply_chat_template([{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': r['user']}],
                                       add_generation_prompt=True, tokenize=True)
-        prompts.append({'prompt_token_ids': list(ids['input_ids'] if hasattr(ids, 'keys') else ids)})
+        prompts.append({'prompt_token_ids': list(ids['input_ids'] if hasattr(ids, 'keys') else ids) + tok.encode(os.environ.get('PROMPT_SUFFIX', ''), add_special_tokens=False)})
     llm = LLM(teacher, tensor_parallel_size=int(os.environ.get('TP', 4)), max_model_len=16384, gpu_memory_utilization=0.90,
               enable_prefix_caching=True)
-    sp = SamplingParams(temperature=float(os.environ.get('TEMP', 0.7)), top_p=0.9, max_tokens=1536, logprobs=K)
+    sp = SamplingParams(temperature=float(os.environ.get('TEMP', 0.7)), top_p=0.9, max_tokens=int(os.environ.get('MAX_TOKENS', 1536)), logprobs=K)
     res = llm.generate(prompts, sp)
     P, O, TI, TL, off, meta = [], [], [], [], [0], []
     for r, p, g in zip(rows, prompts, res):
