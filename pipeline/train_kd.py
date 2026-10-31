@@ -38,6 +38,8 @@ for f in sorted(glob.glob(f'{data}/part*.npz')):
     z = np.load(f)
     po, oo = z['prompt_off'], z['out_off']
     for i in range(len(po) - 1):
+        if 'thk' in os.path.basename(f) and po[i + 1] - po[i] + oo[i + 1] - oo[i] > MAX_LEN:
+            continue  # thinking answers are long: do not train on a prompt that lost its system turn
         items.append((f, int(po[i]), int(po[i + 1]), int(oo[i]), int(oo[i + 1])))
 cache = {}
 
