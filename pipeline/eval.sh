@@ -3,7 +3,7 @@
 # compare it question by question with round 27 + e. usage (inside the agent job): eval.sh NAME MODEL_DIR
 # GPUs: 0 candidate | 1 gpt-oss-20b | 2 Gemma 4 26B | 4-7 Qwen3-235B (FP8, TP4). Writes runs/NAME/RESULT.json.
 NAME=$1; MODEL=$2
-source $HOME/cp/bin/lib.sh; TASK=eval-$NAME; cd $REPO; wait_models || exit 1
+source $HOME/cp/8b/bin/lib.sh; TASK=eval-$NAME; cd $REPO; wait_models || exit 1
 RUN=$CP/runs/$NAME; A=$RUN/answers; mkdir -p $A
 for l in v2 v3 d1; do
     cp -n $CP/data/lb1536e/answers/${l}__base_closed.jsonl $A/
@@ -12,8 +12,8 @@ done
 # round 27's verdicts, judged once on this cluster, are reused so only the candidate is judged
 for j in judged judged_gemma judged_qwen; do mkdir -p $RUN/$j; cp -n $CP/runs/ref_r27e/$j/*__r27e__*.jsonl $RUN/$j/ 2>/dev/null; done
 log "answering with $MODEL"
-serve 0 8100 "$MODEL" cand --max-model-len 16384 --gpu-memory-utilization 0.85 || exit 1
-python $CP/bin/answer.py http://127.0.0.1:8100/v1 cand $A cand | tee -a $CP/logs/tasks.log
+serve ${CAND_GPUS:-0} 8100 "$MODEL" cand --max-model-len ${CAND_LEN:-16384} --gpu-memory-utilization 0.85 ${CAND_ARGS:-} || exit 1
+python $CP/8b/bin/answer.py http://127.0.0.1:8100/v1 cand $A cand | tee -a $CP/logs/tasks.log
 stop_all
 log "judging"
 J1=1 J2=2 JQ=4,5,6,7; [ $NGPU = 4 ] && J1=0 J2=1 JQ=2,3  # 4 GPUs: Qwen3-235B FP8 on TP2

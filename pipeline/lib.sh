@@ -1,5 +1,5 @@
 # Shared helpers for Curiosity tasks (sourced). One 8-GPU node; tasks start and stop their own vLLM servers.
-CP=$HOME/cp; REPO=$CP/alembic; M=$CP/models
+CP=$HOME/cp; REPO=$CP/alembic_8b_clone_20261030; M=$CP/models
 # GPUs of the agent job (8, or 4 when the team share is split); training keeps 64 sequences per step
 export NGPU=${NGPU:-8}
 source $CP/venv/bin/activate
@@ -16,12 +16,12 @@ serve() {
     CUDA_VISIBLE_DEVICES=$gpus nohup vllm serve "$model" --port $port --served-model-name "$name" \
         --tensor-parallel-size $tp --dtype auto "$@" > $CP/logs/vllm_${TASK:-x}_${name//\//_}_$port.log 2>&1 &
     PIDS+=($!)
-    for i in $(seq 1 180); do
+    for i in $(seq 1 720); do
         curl -sf http://127.0.0.1:$port/v1/models > /dev/null && { log "server $name on GPUs $gpus port $port ready"; return 0; }
         kill -0 ${PIDS[-1]} 2>/dev/null || { log "server $name died (see logs/vllm_${TASK:-x}_${name//\//_}_$port.log)"; return 1; }
         sleep 10
     done
-    log "server $name not ready after 30 min"; return 1
+    log "server $name not ready after 2 h"; return 1
 }
 # Tasks run one at a time on the node, so at the end of a task every vLLM server and engine of this user goes
 # (servers started in the background with `serve ... &` are not in this shell's PIDS; Oct 26 fix).
