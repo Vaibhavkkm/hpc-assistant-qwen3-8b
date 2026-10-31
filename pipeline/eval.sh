@@ -1,4 +1,6 @@
 #!/bin/bash
+[ "$1" = tc_480 ] && { echo "skip $1: no thinking mode, cannot be the thinking teacher"; exit 0; }
+[ -n "${EVAL_T:-}" ] || EVAL_T=1 exec timeout -k 60 ${EVAL_MAX:-7200} bash "$0" "$@"  # one eval never blocks the chain
 # Evaluate one 4B model like the Leonardo leaderboard (equal-1536, variant e, reviewed sets, 3 judges + majority) and
 # compare it question by question with round 27 + e. usage (inside the agent job): eval.sh NAME MODEL_DIR
 # GPUs: 0 candidate | 1 gpt-oss-20b | 2 Gemma 4 26B | 4-7 Qwen3-235B (FP8, TP4). Writes runs/NAME/RESULT.json.
