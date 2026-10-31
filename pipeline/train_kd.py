@@ -25,6 +25,8 @@ student, data, out = sys.argv[1:4]
 ALPHA, LR = float(os.environ.get('ALPHA', 0.8)), float(os.environ.get('LR', 5e-6))
 EPOCHS, ACCUM = int(os.environ.get('EPOCHS', 1)), int(os.environ.get('ACCUM', 8))
 MAX_LEN, SEED = int(os.environ.get('MAX_LEN', 12288)), int(os.environ.get('SEED', 0))
+# The teacher prompts end in '<|im_start|>assistant\n' (4B template); Qwen3-8B with thinking off gets this block as well.
+SUFFIX = np.asarray(AutoTokenizer.from_pretrained(student).encode(os.environ.get('PROMPT_SUFFIX', ''), add_special_tokens=False), np.int32)
 dist.init_process_group('nccl')
 rank, world = dist.get_rank(), dist.get_world_size()
 torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
@@ -67,7 +69,7 @@ sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min(1, (s + 1) / warm) 
 def loss_of(it):
     f, p0, p1, o0, o1 = it
     d = load(f)
-    p, o = d['prompt'][p0:p1], d['out'][o0:o1]
+    p, o = np.concatenate([d['prompt'][p0:p1], SUFFIX[:0] if 'thk' in os.path.basename(f) else SUFFIX]), d['out'][o0:o1]
     ti, tl = d['topk_ids'][o0:o1], d['topk_lp'][o0:o1].astype(np.float32)
     keep = max(0, len(p) + len(o) - MAX_LEN)  # drop the start of over-long prompts (rare)
     ids = torch.from_numpy(np.concatenate([p[keep:], o]).astype(np.int64)).to(dev)[None]
