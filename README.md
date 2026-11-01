@@ -5,7 +5,7 @@ ran. They build on `research/curiosity_pipeline` in pparitoshh/alembic. Paths ar
 
 Model and scores: https://huggingface.co/VaibhavKKM/hpc-assistant-qwen3-8b
 
-Final result: thinking on 0.9091 and 0.9157 (mean 0.9124), thinking off 0.8746 and 0.8577, against 0.8665 and 0.8558 for the 4B release. Each score is a win rate against the base 4B closed-book answer, not accuracy. All runs are in `RESULTS.md`. The last round (`run_p.sh`) was still training when the cluster access ended and has no score.
+Final result: thinking on 0.9091 and 0.9157 (mean 0.9124), thinking off 0.8746 and 0.8577, against 0.8665 and 0.8558 for the 4B release. Each score is a win rate against the base 4B closed-book answer, not accuracy. All runs are in `RESULTS.md`. The last round (`run_p.sh`) scored 0.9110 in one run, level with the published weights, so they stay; its weights were not uploaded.
 
 | Script | What it does |
 |---|---|
