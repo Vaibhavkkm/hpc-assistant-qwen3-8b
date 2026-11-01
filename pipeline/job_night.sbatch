@@ -6,5 +6,5 @@
 #SBATCH --cpus-per-task=224
 #SBATCH --mem=0
 #SBATCH --time=20:00:00
-#SBATCH --output=/home/eai-jjppv/cp/8b/logs/jobn-%j.out
+#SBATCH --output=/home/USER/cp/8b/logs/jobn-%j.out
 bash $HOME/cp/8b/bin/run_night.sh
