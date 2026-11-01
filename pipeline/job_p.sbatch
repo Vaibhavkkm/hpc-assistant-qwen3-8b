@@ -6,5 +6,5 @@
 #SBATCH --cpus-per-task=224
 #SBATCH --mem=0
 #SBATCH --time=10:00:00
-#SBATCH --output=/home/eai-jjppv/cp/8b/logs/jobq-%j.out
+#SBATCH --output=/home/USER/cp/8b/logs/jobq-%j.out
 bash $HOME/cp/8b/bin/run_p.sh
