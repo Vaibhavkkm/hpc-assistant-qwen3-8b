@@ -1,7 +1,7 @@
 """All 8B runs next to 1.3, with answer-quality guards. The primary result stays e8_all whatever else scored."""
 import glob, json, os
 CP = os.path.expanduser('~/cp')
-NAMES = ['kdall', 'kdall6', 'e8_ctrl13', 'e8_van_off', 'e8_van_on', 'tc_t235think', 'tc_397on', 'tc_480', 'tc_t24', 'e8_k1', 'e8_k2', 'e8_all', 'e8_all_on', 'e8_both_on', 'e8_both_off', 'e8_all6', 'e8_x1_on', 'e8_x2_on', 'e8_x3_on', 'e8_all_on2', 'e8_x1_on2', 'e8_all_off2', 'e8_soup_on', 'e8_f_on', 'e8_soup_f_on', 'e8_f_on2', 'e8_c_on', 'e9_a_on', 'e9_a_on2', 'e9_b_on', 'e9_b_on2']
+NAMES = ['kdall', 'kdall6', 'e8_ctrl13', 'e8_van_off', 'e8_van_on', 'tc_t235think', 'tc_397on', 'tc_480', 'tc_t24', 'e8_k1', 'e8_k2', 'e8_all', 'e8_all_on', 'e8_both_on', 'e8_both_off', 'e8_all6', 'e8_x1_on', 'e8_x2_on', 'e8_x3_on', 'e8_all_on2', 'e8_x1_on2', 'e8_all_off2', 'e8_soup_on', 'e8_f_on', 'e8_soup_f_on', 'e8_f_on2', 'e8_c_on', 'e9_a_on', 'e9_a_on2', 'e9_b_on', 'e9_b_on2', 'e8_c_on2', 'e9_6_on', 'e9_6_on2']
 print('| run | mean | v2 | v3 | d1 | no answer | hit limit |\n|---|---|---|---|---|---|---|')
 res = {}
 for n in NAMES:
